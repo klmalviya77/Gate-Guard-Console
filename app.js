@@ -572,6 +572,9 @@ function initApp() {
   }
 }
 
+// ==========================================
+// SECURE NETLIFY FUNCTION CALL FOR PUSH
+// ==========================================
 async function sendPremiumPushNotification(societyPlan, flatId, visitorName, purpose) {
   // Plan Check: Agar Starter plan hai, toh Push nahi jayega
   if (societyPlan === 'Starter') {
@@ -579,36 +582,30 @@ async function sendPremiumPushNotification(societyPlan, flatId, visitorName, pur
     return;
   }
 
-  const ONESIGNAL_APP_ID = "0e2347fd-c9d9-41e4-8e16-86862852e147";
-  const ONESIGNAL_REST_KEY = "os_v2_app_byrup7oj3fa6jdqwq2dcquxbi57dccwxdh2u2heftyawogkwvbmzm6nkpg4llcvllb74usessfmemqiny5tzhbmjky2n5rxmt4dtbwy"; 
-
-  const payload = {
-    app_id: ONESIGNAL_APP_ID,
-    include_aliases: { "external_id": [flatId] }, // Seedha us flat ko bhejenge
-    target_channel: "push",
-    headings: { "en": "🚪 GateGuard Alert" },
-    contents: { "en": `${visitorName} (${purpose}) is at the gate. Please approve.` },
-    
-    // CUSTOM SOUND SETTINGS
-    android_sound: "doorbell", // Android ke liye custom sound name
-    ios_sound: "doorbell.wav", // iOS ke liye
-    // Note: Custom sound tabhi bajega jab aap doorbell.mp3/wav OneSignal me upload karoge, warna default bajegee
-  };
-
+  // 🔥 YAHAN DHYAN DO: Direct OneSignal API ki jagah hum apne secure Netlify backend ko bula rahe hain
   try {
-    await fetch("https://onesignal.com/api/v1/notifications", {
+    const response = await fetch("/.netlify/functions/sendPush", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Basic ${ONESIGNAL_REST_KEY}`
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        flatId: flatId,
+        visitorName: visitorName,
+        purpose: purpose
+      })
     });
-    console.log("Premium Push Notification Sent!");
+
+    if (response.ok) {
+        console.log("✅ Secure Premium Push Sent via Backend!");
+    } else {
+        console.error("❌ Backend returned an error", await response.text());
+    }
   } catch (error) {
-    console.error("Push Error:", error);
+    console.error("❌ Secure Push Request Failed:", error);
   }
 }
+
 
 // START THE APP
 initApp();
