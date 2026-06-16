@@ -1,5 +1,5 @@
 // ==========================================
-// SUPABASE SETUP
+// SUPABASE SETUP (Apni keys yahan daalo)
 // ==========================================
 const SUPABASE_URL = 'https://rqorglbbcaupaskaronb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxb3JnbGJiY2F1cGFza2Fyb25iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTQ0MTMsImV4cCI6MjA5Njg5MDQxM30.ViB8Jzu9FNubHcWhrxpnjfvXp8hMjy_zbkPiCtQ6opw';
@@ -24,20 +24,14 @@ if ('serviceWorker' in navigator) {
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 OneSignalDeferred.push(async function(OneSignal) {
   await OneSignal.init({
-    appId: "0e2347fd-c9d9-41e4-8e16-86862852e147",
+    appId: "0e2347fd-c9d9-41e4-8e16-86862852e147", // Tumhari Guard App/Resident App ki ID
     notifyButton: {
       enable: true,
     },
   });
-
-  // SDK v16+ ke liye
-  try {
-    await OneSignal.Notifications.requestPermission();
-  } catch (e) {
-    try { OneSignal.Slidedown.promptPush(); } catch (_) {}
-  }
+  
+  OneSignal.Slidedown.promptPush();
 });
-
 
 // ==========================================
 // CUSTOM TOAST ALERTS
@@ -81,7 +75,7 @@ function hasFeatureAccess(planType, feature) {
 var appRoot = document.getElementById("app-root");
 
 // ==========================================
-// 1. PIN SETUP / LOGIN SCREEN
+// 1. PIN SETUP / LOGIN SCREEN (Main Entry Point)
 // ==========================================
 function showPinSetupScreen() {
   appRoot.innerHTML = [
@@ -111,7 +105,7 @@ function showPinSetupScreen() {
     btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Verifying...';
     btn.disabled = true;
 
-    // ✅ FIX: .single() ki jagah .maybeSingle() use karo
+    // FIX: Using maybeSingle() to prevent console errors on wrong PIN
     var result = await supabaseClient.from("societies").select("*").eq("guard_pin", code).maybeSingle();
     var society = result.data;
     var error = result.error;
@@ -146,6 +140,7 @@ function showPinSetupScreen() {
 async function showGuardConsole(societyId, deviceToken) {
   appRoot.innerHTML = '<div class="min-h-screen flex items-center justify-center font-bold text-slate-500 bg-slate-900">Connecting to Base Station...</div>';
 
+  // FIX: maybeSingle() here too
   var societyResult = await supabaseClient.from("societies").select("*").eq("id", societyId).maybeSingle();
   var society = societyResult.data;
   var societyError = societyResult.error;
@@ -243,13 +238,17 @@ async function showGuardConsole(societyId, deviceToken) {
   // Real-time Clock
   setInterval(function () {
     var clock = document.getElementById("clockDisplay");
-    if (clock) {
-      clock.innerText = new Date().toLocaleTimeString('en-US', {
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-      });
+    if (clock) { 
+      clock.innerText = new Date().toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit', 
+        hour12: true 
+      }); 
     }
   }, 1000);
 
+  // Logout Listener
   document.getElementById("logoutGuardBtn").addEventListener("click", function () {
     if (confirm("Logout from Console? You will need the PIN to authorize this device again.")) {
       localStorage.removeItem("guard_society_id");
@@ -371,6 +370,7 @@ async function showGuardConsole(societyId, deviceToken) {
       return;
     }
 
+    // 🔥 SECURE FIRE PREMIUM PUSH NOTIFICATION
     sendPremiumPushNotification(society.plan_type, flatId, name, purpose);
 
     document.getElementById("guardVisitorName").value = "";
@@ -388,7 +388,7 @@ async function showGuardConsole(societyId, deviceToken) {
     loadGuardRecords();
   });
 
-  // ✅ FIX: VVIP Guest Verify - .single() ko .maybeSingle() se replace kiya
+  // Verify VVIP Pass
   document.getElementById("verifyVvipBtn").addEventListener("click", async function () {
     if (!hasFeatureAccess(society.plan_type, 'vvip_pass')) {
       showToast("VVIP feature locked! Ask Admin to upgrade plan.", "error");
@@ -402,14 +402,9 @@ async function showGuardConsole(societyId, deviceToken) {
     vvipBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
     vvipBtn.disabled = true;
 
-    // ✅ KEY FIX: .single() → .maybeSingle() — 406 error yahan se aa rahi thi
-    var inviteResult = await supabaseClient
-      .from("guest_invites")
-      .select("*, flat:flats(flat_number)")
-      .eq("invite_code", code)
-      .eq("society_id", society.id)
-      .maybeSingle();
-
+    // 🔥 FIX: Changed .single() to .maybeSingle() to prevent 406 Error on invalid codes
+    var inviteResult = await supabaseClient.from("guest_invites").select("*, flat:flats(flat_number)").eq("invite_code", code).eq("society_id", society.id).maybeSingle();
+    
     var invite = inviteResult.data;
     var inviteError = inviteResult.error;
 
@@ -435,7 +430,7 @@ async function showGuardConsole(societyId, deviceToken) {
     }
 
     await supabaseClient.from("guest_invites").update({ is_used: true }).eq("id", invite.id);
-
+    
     await supabaseClient.from("visitors").insert({
       society_id: society.id,
       flat_id: invite.flat_id,
@@ -446,13 +441,12 @@ async function showGuardConsole(societyId, deviceToken) {
       vehicle_number: null
     });
 
+    // 🔥 SECURE FIRE PREMIUM PUSH NOTIFICATION (For VVIP Entry)
     sendPremiumPushNotification(society.plan_type, invite.flat_id, invite.guest_name, "VVIP Guest");
 
     document.getElementById("vvipInputCode").value = "";
     vvipBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
     vvipBtn.classList.replace("bg-indigo-600", "bg-emerald-500");
-
-    showToast("✅ VVIP Guest Allowed: " + invite.guest_name, "success");
 
     setTimeout(function () {
       vvipBtn.innerText = "Verify";
@@ -499,12 +493,13 @@ async function showGuardConsole(societyId, deviceToken) {
           showToast("Scanned: Processing...", "success");
 
           if (decodedText.startsWith("staff-")) {
-            // ✅ Staff QR bhi maybeSingle use karo
+            // FIX: maybeSingle()
             var staffResult = await supabaseClient.from("staff").select("*").eq("qr_slug", decodedText).maybeSingle();
             var staffData = staffResult.data;
 
             if (staffData && staffData.is_active) {
               var todayDate = new Date().toISOString().split('T')[0];
+              // FIX: maybeSingle()
               var openLogResult = await supabaseClient.from("staff_attendance")
                 .select("*").eq("staff_id", staffData.id).eq("date", todayDate).is("time_out", null).maybeSingle();
               var openLog = openLogResult.data;
@@ -587,15 +582,20 @@ async function sendPremiumPushNotification(societyPlan, flatId, visitorName, pur
   try {
     const response = await fetch("/.netlify/functions/sendPush", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ flatId: flatId, visitorName: visitorName, purpose: purpose })
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        flatId: flatId,
+        visitorName: visitorName,
+        purpose: purpose
+      })
     });
 
     if (response.ok) {
-      console.log("✅ Secure Premium Push Sent via Backend!");
+        console.log("✅ Secure Premium Push Sent via Backend!");
     } else {
-      const errText = await response.text();
-      console.error("❌ Backend returned an error:", errText);
+        console.error("❌ Backend returned an error", await response.text());
     }
   } catch (error) {
     console.error("❌ Secure Push Request Failed:", error);
