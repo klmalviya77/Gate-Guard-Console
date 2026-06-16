@@ -1,5 +1,5 @@
 // ==========================================
-// SUPABASE SETUP (Apni keys yahan daalo)
+// SUPABASE SETUP
 // ==========================================
 const SUPABASE_URL = 'https://rqorglbbcaupaskaronb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxb3JnbGJiY2F1cGFza2Fyb25iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTQ0MTMsImV4cCI6MjA5Njg5MDQxM30.ViB8Jzu9FNubHcWhrxpnjfvXp8hMjy_zbkPiCtQ6opw';
@@ -24,14 +24,18 @@ if ('serviceWorker' in navigator) {
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 OneSignalDeferred.push(async function(OneSignal) {
   await OneSignal.init({
-    appId: "(0e2347fd-c9d9-41e4-8e16-86862852e147)", // Yahan apni Resident App ki OneSignal App ID daalna
+    appId: "0e2347fd-c9d9-41e4-8e16-86862852e147",
     notifyButton: {
-      enable: true, // Isse screen ke bottom par ek bell icon bhi aayega subscribe karne ke liye
+      enable: true,
     },
   });
-  
-  // Force browser to show the "Allow Notifications" prompt
-  OneSignal.Slidedown.promptPush();
+
+  // SDK v16+ ke liye
+  try {
+    await OneSignal.Notifications.requestPermission();
+  } catch (e) {
+    try { OneSignal.Slidedown.promptPush(); } catch (_) {}
+  }
 });
 
 
@@ -77,7 +81,7 @@ function hasFeatureAccess(planType, feature) {
 var appRoot = document.getElementById("app-root");
 
 // ==========================================
-// 1. PIN SETUP / LOGIN SCREEN (Main Entry Point)
+// 1. PIN SETUP / LOGIN SCREEN
 // ==========================================
 function showPinSetupScreen() {
   appRoot.innerHTML = [
@@ -107,7 +111,8 @@ function showPinSetupScreen() {
     btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Verifying...';
     btn.disabled = true;
 
-    var result = await supabaseClient.from("societies").select("*").eq("guard_pin", code).single();
+    // ✅ FIX: .single() ki jagah .maybeSingle() use karo
+    var result = await supabaseClient.from("societies").select("*").eq("guard_pin", code).maybeSingle();
     var society = result.data;
     var error = result.error;
 
@@ -141,7 +146,7 @@ function showPinSetupScreen() {
 async function showGuardConsole(societyId, deviceToken) {
   appRoot.innerHTML = '<div class="min-h-screen flex items-center justify-center font-bold text-slate-500 bg-slate-900">Connecting to Base Station...</div>';
 
-  var societyResult = await supabaseClient.from("societies").select("*").eq("id", societyId).single();
+  var societyResult = await supabaseClient.from("societies").select("*").eq("id", societyId).maybeSingle();
   var society = societyResult.data;
   var societyError = societyResult.error;
 
@@ -156,7 +161,6 @@ async function showGuardConsole(societyId, deviceToken) {
   var plan = society.plan_type || 'Starter';
   var isMultiAllowed = (plan === 'Enterprise' || plan === 'Custom');
 
-  // FIX 1: Multiple device token check
   if (!isMultiAllowed && society.guard_device_token && society.guard_device_token !== deviceToken) {
     localStorage.removeItem("guard_society_id");
     localStorage.removeItem("guard_device_token");
@@ -165,7 +169,6 @@ async function showGuardConsole(societyId, deviceToken) {
     return;
   }
 
-  // FIX 2: Removed inline onclick="logoutGuard()" - replaced with id="logoutGuardBtn"
   appRoot.innerHTML = [
     '<div class="min-h-screen bg-slate-900 text-white font-sans flex flex-col md:flex-row overflow-hidden">',
       '<div class="w-full md:w-[350px] lg:w-[400px] bg-slate-800 border-r border-slate-700 p-6 flex flex-col shrink-0 md:h-screen md:overflow-y-auto">',
@@ -240,17 +243,13 @@ async function showGuardConsole(societyId, deviceToken) {
   // Real-time Clock
   setInterval(function () {
     var clock = document.getElementById("clockDisplay");
-    if (clock) { 
-      clock.innerText = new Date().toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit', 
-        hour12: true 
-      }); 
+    if (clock) {
+      clock.innerText = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+      });
     }
   }, 1000);
 
-  // FIX 2: Logout via proper event listener (no inline onclick)
   document.getElementById("logoutGuardBtn").addEventListener("click", function () {
     if (confirm("Logout from Console? You will need the PIN to authorize this device again.")) {
       localStorage.removeItem("guard_society_id");
@@ -372,7 +371,6 @@ async function showGuardConsole(societyId, deviceToken) {
       return;
     }
 
-    // 🔥 FIRE PREMIUM PUSH NOTIFICATION
     sendPremiumPushNotification(society.plan_type, flatId, name, purpose);
 
     document.getElementById("guardVisitorName").value = "";
@@ -390,7 +388,7 @@ async function showGuardConsole(societyId, deviceToken) {
     loadGuardRecords();
   });
 
-  // Verify VVIP Pass
+  // ✅ FIX: VVIP Guest Verify - .single() ko .maybeSingle() se replace kiya
   document.getElementById("verifyVvipBtn").addEventListener("click", async function () {
     if (!hasFeatureAccess(society.plan_type, 'vvip_pass')) {
       showToast("VVIP feature locked! Ask Admin to upgrade plan.", "error");
@@ -404,8 +402,14 @@ async function showGuardConsole(societyId, deviceToken) {
     vvipBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
     vvipBtn.disabled = true;
 
-    var inviteResult = await supabaseClient.from("guest_invites").select("*, flat:flats(flat_number)").eq("invite_code", code).eq("society_id", society.id).single();
-    
+    // ✅ KEY FIX: .single() → .maybeSingle() — 406 error yahan se aa rahi thi
+    var inviteResult = await supabaseClient
+      .from("guest_invites")
+      .select("*, flat:flats(flat_number)")
+      .eq("invite_code", code)
+      .eq("society_id", society.id)
+      .maybeSingle();
+
     var invite = inviteResult.data;
     var inviteError = inviteResult.error;
 
@@ -431,7 +435,7 @@ async function showGuardConsole(societyId, deviceToken) {
     }
 
     await supabaseClient.from("guest_invites").update({ is_used: true }).eq("id", invite.id);
-    
+
     await supabaseClient.from("visitors").insert({
       society_id: society.id,
       flat_id: invite.flat_id,
@@ -442,12 +446,13 @@ async function showGuardConsole(societyId, deviceToken) {
       vehicle_number: null
     });
 
-    // 🔥 FIRE PREMIUM PUSH NOTIFICATION (For VVIP Entry)
     sendPremiumPushNotification(society.plan_type, invite.flat_id, invite.guest_name, "VVIP Guest");
 
     document.getElementById("vvipInputCode").value = "";
     vvipBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
     vvipBtn.classList.replace("bg-indigo-600", "bg-emerald-500");
+
+    showToast("✅ VVIP Guest Allowed: " + invite.guest_name, "success");
 
     setTimeout(function () {
       vvipBtn.innerText = "Verify";
@@ -487,7 +492,6 @@ async function showGuardConsole(societyId, deviceToken) {
         }
 
         html5QrcodeScanner.render(async function (decodedText) {
-          // FIX 3: null check before .clear() to prevent crash
           if (html5QrcodeScanner) { html5QrcodeScanner.clear(); }
           scannerModal.classList.add("hidden");
           scannerModal.classList.remove("flex");
@@ -495,13 +499,14 @@ async function showGuardConsole(societyId, deviceToken) {
           showToast("Scanned: Processing...", "success");
 
           if (decodedText.startsWith("staff-")) {
-            var staffResult = await supabaseClient.from("staff").select("*").eq("qr_slug", decodedText).single();
+            // ✅ Staff QR bhi maybeSingle use karo
+            var staffResult = await supabaseClient.from("staff").select("*").eq("qr_slug", decodedText).maybeSingle();
             var staffData = staffResult.data;
 
             if (staffData && staffData.is_active) {
               var todayDate = new Date().toISOString().split('T')[0];
               var openLogResult = await supabaseClient.from("staff_attendance")
-                .select("*").eq("staff_id", staffData.id).eq("date", todayDate).is("time_out", null).single();
+                .select("*").eq("staff_id", staffData.id).eq("date", todayDate).is("time_out", null).maybeSingle();
               var openLog = openLogResult.data;
 
               if (openLog) {
@@ -525,7 +530,6 @@ async function showGuardConsole(societyId, deviceToken) {
             showToast("Unrecognized QR Code Format", "error");
           }
         }, function (errorMessage) {
-          // FIX 3: null check before .clear() in error callback too
           if (errorMessage.includes("NotAllowedError") || errorMessage.includes("Permission denied")) {
             if (html5QrcodeScanner) { html5QrcodeScanner.clear(); }
             scannerModal.classList.add("hidden");
@@ -551,7 +555,6 @@ async function showGuardConsole(societyId, deviceToken) {
   });
 
   closeScannerBtn.addEventListener("click", function () {
-    // FIX 3: null check before .clear()
     if (html5QrcodeScanner) { html5QrcodeScanner.clear(); }
     scannerModal.classList.add("hidden");
     scannerModal.classList.remove("flex");
@@ -576,36 +579,28 @@ function initApp() {
 // SECURE NETLIFY FUNCTION CALL FOR PUSH
 // ==========================================
 async function sendPremiumPushNotification(societyPlan, flatId, visitorName, purpose) {
-  // Plan Check: Agar Starter plan hai, toh Push nahi jayega
   if (societyPlan === 'Starter') {
     console.log("Starter Plan: Web Push skipped.");
     return;
   }
 
-  // 🔥 YAHAN DHYAN DO: Direct OneSignal API ki jagah hum apne secure Netlify backend ko bula rahe hain
   try {
     const response = await fetch("/.netlify/functions/sendPush", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        flatId: flatId,
-        visitorName: visitorName,
-        purpose: purpose
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ flatId: flatId, visitorName: visitorName, purpose: purpose })
     });
 
     if (response.ok) {
-        console.log("✅ Secure Premium Push Sent via Backend!");
+      console.log("✅ Secure Premium Push Sent via Backend!");
     } else {
-        console.error("❌ Backend returned an error", await response.text());
+      const errText = await response.text();
+      console.error("❌ Backend returned an error:", errText);
     }
   } catch (error) {
     console.error("❌ Secure Push Request Failed:", error);
   }
 }
-
 
 // START THE APP
 initApp();
