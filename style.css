@@ -1,0 +1,59 @@
+/* Custom Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a; /* slate-900 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155; /* slate-700 */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Base Body settings */
+body {
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Toast Animation */
+.toast-enter {
+  transform: translateX(0) !important;
+  opacity: 1 !important;
+}
+
+.toast-exit {
+  transform: translateX(100%) !important;
+  opacity: 0 !important;
+}
+
+/* Scanner Overrides */
+#qr-reader {
+  border: none !important;
+}
+
+#qr-reader img {
+  display: none !important;
+}
+
+#qr-reader button {
+  background-color: #4f46e5;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: bold;
+  border: none;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+#qr-reader button:hover {
+  background-color: #4338ca;
+}

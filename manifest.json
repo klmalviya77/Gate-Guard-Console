@@ -1,0 +1,15 @@
+{
+  "name": "GateGuard Resident",
+  "short_name": "GateGuard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3204/3204044.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
