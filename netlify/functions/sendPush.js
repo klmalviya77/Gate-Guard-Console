@@ -1,172 +1,63 @@
-const https = require("https");
+// netlify/functions/sendPush.js
 
-exports.handler = async function (event) {
+exports.handler = async function (event, context) {
   if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: "Method Not Allowed"
-    };
+    return { statusCode: 405, body: "Method Not Allowed" };
   }
-
-  let body;
 
   try {
-    body = JSON.parse(event.body);
-  } catch (e) {
-    return {
-      statusCode: 400,
-      body: "Invalid JSON"
+    const payload = JSON.parse(event.body);
+    
+    const APP_ID = process.env.ONESIGNAL_APP_ID;
+    const REST_KEY = process.env.ONESIGNAL_REST_KEY;
+    const targetExternalId = String(payload.flatId);
+
+    // नया वनसिग्नल पेलोड फॉर्मेट
+    const oneSignalPayload = {
+      app_id: APP_ID,
+      target_channel: "push",
+      // यहाँ alias_label बताना ज़रूरी है
+      alias_label: "external_id", 
+      include_aliases: { 
+        "external_id": [targetExternalId] 
+      },
+      headings: { "en": "🚪 GateGuard Alert" },
+      contents: { "en": `${payload.visitorName} (${payload.purpose}) is at the gate. Please approve.` },
+      android_sound: "doorbell",
+      ios_sound: "doorbell.wav"
     };
-  }
 
-  const { flatId, visitorName, purpose } = body;
+    // सुरक्षित रिक्वेस्ट के लिए ग्लोबल fetch (Netlify Node 18+ को सपोर्ट करता है)
+    const response = await fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Basic ${REST_KEY}` 
+      },
+      body: JSON.stringify(oneSignalPayload)
+    });
 
-  if (!flatId || !visitorName) {
-    return {
-      statusCode: 400,
-      body: "Missing required fields: flatId, visitorName"
-    };
-  }
-
-  const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID;
-  const ONESIGNAL_REST_API_KEY =
-    process.env.ONESIGNAL_REST_API_KEY;
-
-  if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
-    console.warn(
-      "⚠️ OneSignal env keys not configured"
-    );
+    const data = await response.json();
+    
+    // अगर वनसिग्नल की तरफ से कोई एरर आया हो
+    if (data.errors) {
+       console.error("OneSignal Delivery Error:", data.errors);
+       return {
+         statusCode: 400,
+         body: JSON.stringify({ success: false, errors: data.errors })
+       };
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({
-        success: false,
-        reason:
-          "OneSignal keys not configured"
-      })
+      body: JSON.stringify({ success: true, response: data })
+    };
+    
+  } catch (error) {
+    console.error("Backend Error:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Failed to send push notification", details: error.message })
     };
   }
-
-  console.log("========== PUSH DEBUG ==========");
-  console.log("Flat ID:", flatId);
-  console.log("Visitor:", visitorName);
-  console.log("Purpose:", purpose);
-  console.log(
-    "APP ID Exists:",
-    !!ONESIGNAL_APP_ID
-  );
-  console.log(
-    "REST KEY Exists:",
-    !!ONESIGNAL_REST_API_KEY
-  );
-
-  const payload = JSON.stringify({
-    app_id: ONESIGNAL_APP_ID,
-
-    include_aliases: {
-      external_id: [String(flatId)]
-    },
-
-    target_channel: "push",
-
-    headings: {
-      en: "🔔 Visitor at Gate"
-    },
-
-    contents: {
-      en:
-        (visitorName || "Someone") +
-        " has arrived" +
-        (purpose
-          ? " (" + purpose + ")"
-          : "") +
-        "."
-    },
-
-    priority: 10,
-    ttl: 300
-  });
-
-  console.log(
-    "OneSignal Payload:",
-    payload
-  );
-
-  const options = {
-    hostname: "api.onesignal.com",
-    port: 443,
-    path: "/notifications",
-    method: "POST",
-    headers: {
-      "Content-Type":
-        "application/json",
-      Authorization:
-        "Key " +
-        ONESIGNAL_REST_API_KEY
-    }
-  };
-
-  return new Promise((resolve) => {
-    const req = https.request(
-      options,
-      (res) => {
-        let data = "";
-
-        res.on("data", (chunk) => {
-          data += chunk;
-        });
-
-        res.on("end", () => {
-          console.log(
-            "OneSignal Status:",
-            res.statusCode
-          );
-
-          console.log(
-            "OneSignal Response:",
-            data
-          );
-
-          let parsed;
-
-          try {
-            parsed = JSON.parse(data);
-          } catch (err) {
-            parsed = {
-              raw: data
-            };
-          }
-
-          resolve({
-            statusCode:
-              res.statusCode || 500,
-            body: JSON.stringify({
-              success:
-                res.statusCode >= 200 &&
-                res.statusCode < 300,
-              response: parsed
-            })
-          });
-        });
-      }
-    );
-
-    req.on("error", (err) => {
-      console.error(
-        "OneSignal Request Error:",
-        err
-      );
-
-      resolve({
-        statusCode: 500,
-        body: JSON.stringify({
-          success: false,
-          error: err.message
-        })
-      });
-    });
-
-    req.write(payload);
-    req.end();
-  });
 };
