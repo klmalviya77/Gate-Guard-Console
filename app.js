@@ -24,7 +24,7 @@ if ('serviceWorker' in navigator) {
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 OneSignalDeferred.push(async function(OneSignal) {
   await OneSignal.init({
-    appId: "0e2347fd-c9d9-41e4-8e16-86862852e147", // Tumhari Guard App/Resident App ki ID
+    appId: "0e2347fd-c9d9-41e4-8e16-86862852e147", 
     notifyButton: {
       enable: true,
     },
@@ -105,7 +105,7 @@ function showPinSetupScreen() {
     btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Verifying...';
     btn.disabled = true;
 
-    // FIX: Using maybeSingle() to prevent console errors on wrong PIN
+    // maybeSingle() lagaya hua hai error handle karne ke liye
     var result = await supabaseClient.from("societies").select("*").eq("guard_pin", code).maybeSingle();
     var society = result.data;
     var error = result.error;
@@ -140,7 +140,6 @@ function showPinSetupScreen() {
 async function showGuardConsole(societyId, deviceToken) {
   appRoot.innerHTML = '<div class="min-h-screen flex items-center justify-center font-bold text-slate-500 bg-slate-900">Connecting to Base Station...</div>';
 
-  // FIX: maybeSingle() here too
   var societyResult = await supabaseClient.from("societies").select("*").eq("id", societyId).maybeSingle();
   var society = societyResult.data;
   var societyError = societyResult.error;
@@ -370,7 +369,7 @@ async function showGuardConsole(societyId, deviceToken) {
       return;
     }
 
-    // 🔥 SECURE FIRE PREMIUM PUSH NOTIFICATION
+    // 🔥 SECURE FIRE PREMIUM PUSH NOTIFICATION (Netlify backend call)
     sendPremiumPushNotification(society.plan_type, flatId, name, purpose);
 
     document.getElementById("guardVisitorName").value = "";
@@ -493,13 +492,11 @@ async function showGuardConsole(societyId, deviceToken) {
           showToast("Scanned: Processing...", "success");
 
           if (decodedText.startsWith("staff-")) {
-            // FIX: maybeSingle()
             var staffResult = await supabaseClient.from("staff").select("*").eq("qr_slug", decodedText).maybeSingle();
             var staffData = staffResult.data;
 
             if (staffData && staffData.is_active) {
               var todayDate = new Date().toISOString().split('T')[0];
-              // FIX: maybeSingle()
               var openLogResult = await supabaseClient.from("staff_attendance")
                 .select("*").eq("staff_id", staffData.id).eq("date", todayDate).is("time_out", null).maybeSingle();
               var openLog = openLogResult.data;
