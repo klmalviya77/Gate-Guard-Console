@@ -6,19 +6,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ==========================================
-// PWA SERVICE WORKER REGISTRATION
-// ==========================================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/OneSignalSDKWorker.js').then(function(registration) {
-      console.log('PWA & OneSignal ServiceWorker registered!');
-    }).catch(function(err) {
-      console.log('ServiceWorker registration failed: ', err);
-    });
-  });
-}
-
-// ==========================================
 // ONESIGNAL INITIALIZATION & PERMISSION PROMPT
 // ==========================================
 window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -571,10 +558,13 @@ function initApp() {
 // SECURE NETLIFY FUNCTION CALL FOR PUSH
 // ==========================================
 async function sendPremiumPushNotification(societyPlan, flatId, visitorName, purpose) {
-  if (societyPlan === 'Starter') {
-    console.log("Starter Plan: Web Push skipped.");
-    return;
-  }
+  if (societyPlan === 'Starter' || !societyPlan) {
+  console.warn(
+    "Push skipped because society plan is:",
+    societyPlan
+  );
+  return;
+}
 
   try {
     const response = await fetch("/.netlify/functions/sendPush", {
