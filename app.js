@@ -5,32 +5,6 @@ const SUPABASE_URL = 'https://rqorglbbcaupaskaronb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxb3JnbGJiY2F1cGFza2Fyb25iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTQ0MTMsImV4cCI6MjA5Njg5MDQxM30.ViB8Jzu9FNubHcWhrxpnjfvXp8hMjy_zbkPiCtQ6opw';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ❌ REMOVED: Manual navigator.serviceWorker.register('/OneSignalSDKWorker.js')
-// ✅ FIX #7: OneSignal SDK v16 apna Service Worker khud register karta hai.
-//            Manually register karne se conflict hota tha — isliye hata diya.
-
-// ==========================================
-// ✅ FIX #1 + #2: ONESIGNAL INIT — SIRF EK BAAR, SIRF YAHAN
-// (index.html wala duplicate init block hata diya gaya hai)
-// ==========================================
-window.OneSignalDeferred = window.OneSignalDeferred || [];
-OneSignalDeferred.push(async function(OneSignal) {
-  await OneSignal.init({
-    appId: "2643362c-8a4d-4693-aacd-2015baabe9f7",
-    notifyButton: { enable: true },
-  });
-
-  // ✅ FIX: Deprecated Slidedown.promptPush() ki jagah sahi method
-  try {
-    const permission = await OneSignal.Notifications.requestPermission();
-    if (!permission) {
-      console.warn("⚠️ Guard ne notification permission deny ki.");
-    }
-  } catch (e) {
-    console.error("Permission request error:", e);
-  }
-});
-
 // ==========================================
 // CUSTOM TOAST ALERTS
 // ==========================================
@@ -366,9 +340,6 @@ async function showGuardConsole(societyId, deviceToken) {
       return;
     }
 
-    // ✅ Push notification bhejo (Plan check sendPush.js mein hoga)
-    sendPremiumPushNotification(society.plan_type, flatId, name, purpose);
-
     document.getElementById("guardVisitorName").value = "";
     document.getElementById("guardVisitorMobile").value = "";
 
@@ -434,8 +405,6 @@ async function showGuardConsole(societyId, deviceToken) {
       purpose: "Guest",
       vehicle_number: null
     });
-
-    sendPremiumPushNotification(society.plan_type, invite.flat_id, invite.guest_name, "VVIP Guest");
 
     document.getElementById("vvipInputCode").value = "";
     vvipBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
@@ -558,41 +527,6 @@ function initApp() {
     showGuardConsole(societyId, deviceToken);
   } else {
     showPinSetupScreen();
-  }
-}
-
-// ==========================================
-// ✅ SECURE NETLIFY FUNCTION CALL FOR PUSH
-// Plan check: Starter ko push nahi milega
-// ==========================================
-async function sendPremiumPushNotification(societyPlan, flatId, visitorName, purpose) {
-  // ✅ FIX #3: Plan check — Starter pe skip karo aur console mein warn karo
-  if (!societyPlan || societyPlan === 'Starter') {
-    console.warn("⚠️ Push skipped: Plan is Starter or not set. Supabase mein society ka plan_type check karo.");
-    return;
-  }
-
-  try {
-    const response = await fetch("/.netlify/functions/sendPush", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        flatId: flatId,
-        visitorName: visitorName,
-        purpose: purpose
-      })
-    });
-
-    if (response.ok) {
-      console.log("✅ Push sent successfully via Netlify backend!");
-    } else {
-      const errText = await response.text();
-      console.error("❌ Backend error:", errText);
-    }
-  } catch (error) {
-    console.error("❌ Push request failed:", error);
   }
 }
 

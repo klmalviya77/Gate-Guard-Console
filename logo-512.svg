@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- PWA App Icon Base (Dark Slate) -->
+  <rect width="512" height="512" rx="115" fill="#0F172A"/>
+
+  <!-- Outer Shield (Left Half - Bright Indigo) -->
+  <path d="M256 80 L400 130 C400 280 320 400 256 440 C192 400 112 280 112 130 Z" fill="url(#shieldGrad)" />
+
+  <!-- Outer Shield (Right Half - Darker Indigo for 3D Depth) -->
+  <path d="M256 80 L400 130 C400 280 320 400 256 440 V80 Z" fill="#3730A3" />
+
+  <!-- Abstract Gate/Doors Opening (Left Half - Bright Emerald) -->
+  <path d="M190 200 L256 160 L322 200 V320 L256 360 L190 320 Z" fill="#10B981" />
+
+  <!-- Abstract Gate/Doors Opening (Right Half - Darker Emerald for 3D Depth) -->
+  <path d="M256 160 L322 200 V320 L256 360 V160 Z" fill="#059669" />
+
+  <!-- The Core (White glowing center representing secure entry/verified) -->
+  <circle cx="256" cy="260" r="24" fill="#FFFFFF" />
+  
+  <!-- Subtle inner shadow/glow on the core -->
+  <circle cx="256" cy="260" r="12" fill="#E2E8F0" />
+
+  <!-- Gradients Definition -->
+  <defs>
+    <linearGradient id="shieldGrad" x1="112" y1="80" x2="400" y2="440" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#4338CA"/>
+    </linearGradient>
+  </defs>
+</svg>
