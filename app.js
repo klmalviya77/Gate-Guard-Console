@@ -3,6 +3,27 @@ const CONFIG = {
     SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxb3JnbGJiY2F1cGFza2Fyb25iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTQ0MTMsImV4cCI6MjA5Njg5MDQxM30.ViB8Jzu9FNubHcWhrxpnjfvXp8hMjy_zbkPiCtQ6opw'
 };
 
+
+// GLOBAL ERROR HANDLER 
+window.addEventListener('error', function(event) {
+    console.error("Caught Global Error:", event.error);
+    if(typeof Utils !== 'undefined' && Utils.showToast) {
+        Utils.showToast("System Error: " + (event.message || "Something went wrong."), "error");
+    }
+});
+
+window.addEventListener('unhandledrejection', function(event) {
+    console.error("Caught Promise Rejection:", event.reason);
+    if(typeof Utils !== 'undefined' && Utils.showToast) {
+        let errorMsg = "Network Error: Failed to connect to server.";
+        if(event.reason && event.reason.message) {
+            errorMsg = event.reason.message;
+        }
+        Utils.showToast(errorMsg, "error");
+    }
+});
+
+
 // 🔥 FIX: Changed 'supabase' to 'supabaseClient'
 const supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 const appRoot = document.getElementById("app-root");

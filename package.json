@@ -1,0 +1,11 @@
+{
+  "name": "gateguard-saas",
+  "version": "1.0.0",
+  "description": " Guard Console ",
+  "scripts": {
+    "build": "npx tailwindcss -i ./input.css -o ./style.css --minify"
+  },
+  "dependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}
