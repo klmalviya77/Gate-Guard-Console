@@ -21,8 +21,12 @@
   <script src="https://unpkg.com/html5-qrcode"
           type="text/javascript"></script>
 
+  <!-- ✅ FIX: SDK sirf load hoga yahan, init SIRF app.js mein hoga -->
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
           defer></script>
+
+  <!-- ❌ REMOVED: Yahan pehle duplicate OneSignal.init() tha — hata diya -->
+
 </head>
 
 <body class="bg-slate-900 font-sans antialiased text-white">

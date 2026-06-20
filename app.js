@@ -1,23 +1,34 @@
 // ==========================================
-// SUPABASE SETUP (Apni keys yahan daalo)
+// SUPABASE SETUP
 // ==========================================
 const SUPABASE_URL = 'https://rqorglbbcaupaskaronb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxb3JnbGJiY2F1cGFza2Fyb25iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzMTQ0MTMsImV4cCI6MjA5Njg5MDQxM30.ViB8Jzu9FNubHcWhrxpnjfvXp8hMjy_zbkPiCtQ6opw';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ❌ REMOVED: Manual navigator.serviceWorker.register('/OneSignalSDKWorker.js')
+// ✅ FIX #7: OneSignal SDK v16 apna Service Worker khud register karta hai.
+//            Manually register karne se conflict hota tha — isliye hata diya.
+
 // ==========================================
-// ONESIGNAL INITIALIZATION & PERMISSION PROMPT
+// ✅ FIX #1 + #2: ONESIGNAL INIT — SIRF EK BAAR, SIRF YAHAN
+// (index.html wala duplicate init block hata diya gaya hai)
 // ==========================================
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 OneSignalDeferred.push(async function(OneSignal) {
-    await OneSignal.init({
-    // String ko 2 hisso me tod diya taaki Netlify ka scanner bypass ho jaye
-    appId: "0e2347fd-c9d9-41e4-" + "8e16-86862852e147", 
+  await OneSignal.init({
+    appId: "0e2347fd-c9d9-41e4-8e16-86862852e147",
     notifyButton: { enable: true },
   });
 
-  
-  OneSignal.Slidedown.promptPush();
+  // ✅ FIX: Deprecated Slidedown.promptPush() ki jagah sahi method
+  try {
+    const permission = await OneSignal.Notifications.requestPermission();
+    if (!permission) {
+      console.warn("⚠️ Guard ne notification permission deny ki.");
+    }
+  } catch (e) {
+    console.error("Permission request error:", e);
+  }
 });
 
 // ==========================================
@@ -62,7 +73,7 @@ function hasFeatureAccess(planType, feature) {
 var appRoot = document.getElementById("app-root");
 
 // ==========================================
-// 1. PIN SETUP / LOGIN SCREEN (Main Entry Point)
+// 1. PIN SETUP / LOGIN SCREEN
 // ==========================================
 function showPinSetupScreen() {
   appRoot.innerHTML = [
@@ -92,7 +103,6 @@ function showPinSetupScreen() {
     btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Verifying...';
     btn.disabled = true;
 
-    // maybeSingle() lagaya hua hai error handle karne ke liye
     var result = await supabaseClient.from("societies").select("*").eq("guard_pin", code).maybeSingle();
     var society = result.data;
     var error = result.error;
@@ -224,17 +234,17 @@ async function showGuardConsole(societyId, deviceToken) {
   // Real-time Clock
   setInterval(function () {
     var clock = document.getElementById("clockDisplay");
-    if (clock) { 
-      clock.innerText = new Date().toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit', 
-        hour12: true 
-      }); 
+    if (clock) {
+      clock.innerText = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
     }
   }, 1000);
 
-  // Logout Listener
+  // Logout
   document.getElementById("logoutGuardBtn").addEventListener("click", function () {
     if (confirm("Logout from Console? You will need the PIN to authorize this device again.")) {
       localStorage.removeItem("guard_society_id");
@@ -243,7 +253,7 @@ async function showGuardConsole(societyId, deviceToken) {
     }
   });
 
-  // Dropdown Logic
+  // Tower & Flat Dropdowns
   var towerSelect = document.getElementById("guardTowerSelect");
   var flatSelect = document.getElementById("guardFlatSelect");
 
@@ -284,7 +294,7 @@ async function showGuardConsole(societyId, deviceToken) {
     });
   }
 
-  // Load Records Logic
+  // Load Today's Records
   var loadGuardRecords = async function () {
     var today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -356,7 +366,7 @@ async function showGuardConsole(societyId, deviceToken) {
       return;
     }
 
-    // 🔥 SECURE FIRE PREMIUM PUSH NOTIFICATION (Netlify backend call)
+    // ✅ Push notification bhejo (Plan check sendPush.js mein hoga)
     sendPremiumPushNotification(society.plan_type, flatId, name, purpose);
 
     document.getElementById("guardVisitorName").value = "";
@@ -388,9 +398,7 @@ async function showGuardConsole(societyId, deviceToken) {
     vvipBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
     vvipBtn.disabled = true;
 
-    // 🔥 FIX: Changed .single() to .maybeSingle() to prevent 406 Error on invalid codes
     var inviteResult = await supabaseClient.from("guest_invites").select("*, flat:flats(flat_number)").eq("invite_code", code).eq("society_id", society.id).maybeSingle();
-    
     var invite = inviteResult.data;
     var inviteError = inviteResult.error;
 
@@ -416,7 +424,7 @@ async function showGuardConsole(societyId, deviceToken) {
     }
 
     await supabaseClient.from("guest_invites").update({ is_used: true }).eq("id", invite.id);
-    
+
     await supabaseClient.from("visitors").insert({
       society_id: society.id,
       flat_id: invite.flat_id,
@@ -427,7 +435,6 @@ async function showGuardConsole(societyId, deviceToken) {
       vehicle_number: null
     });
 
-    // 🔥 SECURE FIRE PREMIUM PUSH NOTIFICATION (For VVIP Entry)
     sendPremiumPushNotification(society.plan_type, invite.flat_id, invite.guest_name, "VVIP Guest");
 
     document.getElementById("vvipInputCode").value = "";
@@ -555,16 +562,15 @@ function initApp() {
 }
 
 // ==========================================
-// SECURE NETLIFY FUNCTION CALL FOR PUSH
+// ✅ SECURE NETLIFY FUNCTION CALL FOR PUSH
+// Plan check: Starter ko push nahi milega
 // ==========================================
 async function sendPremiumPushNotification(societyPlan, flatId, visitorName, purpose) {
-  if (societyPlan === 'Starter' || !societyPlan) {
-  console.warn(
-    "Push skipped because society plan is:",
-    societyPlan
-  );
-  return;
-}
+  // ✅ FIX #3: Plan check — Starter pe skip karo aur console mein warn karo
+  if (!societyPlan || societyPlan === 'Starter') {
+    console.warn("⚠️ Push skipped: Plan is Starter or not set. Supabase mein society ka plan_type check karo.");
+    return;
+  }
 
   try {
     const response = await fetch("/.netlify/functions/sendPush", {
@@ -580,12 +586,13 @@ async function sendPremiumPushNotification(societyPlan, flatId, visitorName, pur
     });
 
     if (response.ok) {
-        console.log("✅ Secure Premium Push Sent via Backend!");
+      console.log("✅ Push sent successfully via Netlify backend!");
     } else {
-        console.error("❌ Backend returned an error", await response.text());
+      const errText = await response.text();
+      console.error("❌ Backend error:", errText);
     }
   } catch (error) {
-    console.error("❌ Secure Push Request Failed:", error);
+    console.error("❌ Push request failed:", error);
   }
 }
 
