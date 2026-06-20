@@ -53,7 +53,7 @@ exports.handler = async function (event, context) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Basic ${REST_KEY}`
+        "Authorization": `key ${REST_KEY}`
       },
       body: JSON.stringify(oneSignalPayload)
     });
