@@ -8,7 +8,7 @@ exports.handler = async function (event, context) {
   try {
     const payload = JSON.parse(event.body);
 
-    const APP_ID = "2643362c-8a4d-4693-aacd-2015baabe9f7";
+    const APP_ID = "0e2347fd-c9d9-41e4-8e16-86862852e147";
 
     // ✅ FIX #4: REST API Key validate karo — agar set nahi hai toh 500 do, 401 nahi
     const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
